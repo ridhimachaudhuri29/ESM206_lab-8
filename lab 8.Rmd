@@ -24,3 +24,110 @@ homes <- read_csv(here("data", "slo_homes.csv")) %>%
   janitor::clean_names()
 print(homes)
 ```
+
+
+A little bit of cleaning
+
+Make a subset called home_sub which only contins observations  (rows) where the city is :
+- San louis obispo
+-Arroyo Grande
+-Atascadero
+-Santa Maria-Orcutt
+
+
+```{r}
+
+homes_sub <- homes %>%
+  filter(city %in% c("San Luis Obispo", "Arroyo Grande", "Atascadero", "Santa Maria-Orcutt"))
+```
+## Do a little bit of exploring
+
+summary statistics (home price, based on city and sale status):
+
+- Find and return in a nice summary table the mean and standard deviation of home price, grouped by city ansd sale status
+
+```{r}
+homes_sub %>%
+  group_by(city, status) %>%
+  summarize(mean_price= mean(price, na.rm= TRUE), sd_price= sd(price, na.rm = TRUE))
+
+# actually I don't even want to run this code: eval= FALSE
+
+
+ggplot(data= homes_sub, aes(x=price)) +
+  geom_density(aes(color=city, fill=city), alpha=0.3) + scale_x_continuous(limits = c(0,3e6))#mapping a variable to an aesthetic so inside the aes 
+
+```
+this plot is exploratory. higher density of houses for lower price for santa maria. 
+
+Explore the relationship (visual data exploration) between square footage and home price. Change the point color by city, and the point shape by sale status.
+
+```{r}
+ggplot(data= homes_sub, aes(x = sq_ft, y = price)) +geom_point() + geom_smooth(method=lm)
+```
+## Model the relationship with home price as dependent variable ( that is the outcome variable)
+
+```{r}
+homes_lm1 <- lm(price ~ city + bedrooms + bathrooms+ sq_ft + price_per_sq_ft + status , data = homes_sub)
+
+
+```
+
+# Make a subset that only contains the quantitative variables
+```{r}
+ homes_quant <- homes_sub %>%
+  select(price: price_per_sq_ft)
+homes_cor <- cor(homes_quant)
+homes_cor
+
+corrplot(homes_cor, method = 'ellipse')
+
+#How would i explore the diagnostic plots?
+  
+plot(homes_lm1)  
+```
+Try another model where we simplify this a bit:
+
+-city
+-sq_ft
+-status
+
+```{r}
+homes_lm2 <- lm(price ~ city + sq_ft + status, data = homes_sub)
+plot(homes_lm2)
+```
+ Adjusted R squared value of 0.8457 interpretation: 84% of the variance in home price is explained by the variables - city, bedroom bathroom price per sq foot, status. it accounts for the fact that model fit will increase solely by adding variables. 
+
+Find the AIC value of each model:
+
+```{r}
+AIC(homes_lm1)
+AIC(homes_lm2)
+```
+
+
+A lower AIC value indicates a better fit between model fit and complexity. 
+
+Try another permutation of this model that you think might make sense, check out and compare the model fit, outputs and AIC value.
+```{r}
+homes_lm3 <- lm(price ~ sq_ft +city + bedrooms + status, data = homes_sub)
+
+summary(homes_lm3)
+AIC(homes_lm3)
+```
+
+Use modelsummary to show model outputs side-by-side
+
+if you use model summary to return model outputs of multiple models, it wants you to feed it to it as a list.
+```{r}
+modelsummary(list(homes_lm1, homes_lm2, homes_lm3))
+```
+
+## Start making predicitions with this model
+
+Use 'broom::augment()'
+
+```{r}
+homes_predicited <- augment(homes_lm1)
+```
+Use the predict() function to try out your model on new scenarios you create. 
